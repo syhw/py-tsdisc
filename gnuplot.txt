@@ -1,0 +1,3 @@
+set datafile separator ","
+plot "data 300s.csv" using 1:3 with lines
+
