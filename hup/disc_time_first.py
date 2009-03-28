@@ -224,7 +224,10 @@ print levels
 
 ### Do plotting if necessary [DUMB DUMB DUMB]
 if plot:
-    import matplotlib.pyplot as plt
+    try:
+        import matplotlib.pyplot as plt
+    except:
+        sys.exit('Error: import matplotlib failed')
     ### Set levels_values
     levels_values = []
     for c in data_ind:
@@ -247,6 +250,7 @@ try:
     for c in data_ind:
         for i in range(len(fl[c])):
             f.write(predicate + '(' + first_line[c+1].rstrip(',') \
+                    ### TODO write it well
                     + ',' + str(fl[c][i]) + ',' + str(i) + ').\n' )
     print '>>> Symbolic discretized model written in %s_disc.sol' % (name)
 finally:

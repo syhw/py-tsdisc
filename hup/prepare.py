@@ -38,7 +38,7 @@ except:
 
 ### All the parameters that can be changed
 prog = './gvhmm'
-slice = '5'             # number of levels, 3:9:1 means between 3 and 9, incr 1
+slice = '11'             # number of levels, 3:9:1 means between 3 and 9, incr 1
 number_cols = '10'      # number of columns
 indice = '0'            # indice of the ID (first indice)
 times = '3'             # number of runs
@@ -198,7 +198,10 @@ print fl
 
 ### Do plotting if necessary [DUMB DUMB DUMB]
 if plot:
-    import matplotlib.pyplot as plt
+    try:
+        import matplotlib.pyplot as plt
+    except:
+        sys.exit('Error: import matplotlib failed')
     data_values = [] # data[compound_ind][time]
     ### Convert data[i][c] to data_values[c][i] and set levels_values
     levels_values = []
@@ -212,8 +215,8 @@ if plot:
         levels_values.append(tmp_lv)
     for c in data_ind:
         plt.figure(c)
-        plt.plot(time, data_values[c], 'r', linewidth=1.0)
-        plt.plot(time, levels_values[c], 'k', linewidth=1.0)
+        plt.plot(time, data_values[c], 'r', linewidth=2.0)
+        plt.plot(time, levels_values[c], 'k', linewidth=2.0)
         ax = [min(time)-0.05, max(time)+0.05, 
                 min(levels_values[c])-0.5, max(levels_values[c])+0.5]
         plt.axis(ax)
