@@ -7,6 +7,7 @@ To be compliant with HUP:
 __Inputs__:
 The input file is supposed to be concentrations of chemical products over time,
 the first column of the csv beeing time.
+/!\ Time is considered "as is" and dealt with like if equal-width
     -s : works with the speeds of changes of concentration
     -a : works with the accelerations of changes of concentration
 
@@ -42,7 +43,7 @@ number_cols = '10'      # number of columns
 indice = '0'            # indice of the ID (first indice)
 times = '3'             # number of runs
 viterbi_times = '3'     # number of viterbi walks
-max_number_time_step = 10
+max_number_time_steps = 10
 predicate = 'conc' # conc / speed / acce // DO NOT SET
 name = ""
 for arg in sys.argv[1:]: # may use getopt
@@ -176,7 +177,7 @@ step_size = len(levels[0])
 for c in data_ind:
     current = [c][0]
     step_size_c = 1
-    min_step_size = int(round(float(len(levels[c]))/max_number_time_step))
+    min_step_size = int(round(float(len(levels[c]))/max_number_time_steps))
     for i in range(len(levels[c])):
         if current != levels[c][i]:
             if step_size_c < step_size and step_size_c >= min_step_size:

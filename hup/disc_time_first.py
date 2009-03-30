@@ -7,6 +7,7 @@ To be compliant with GHUP:
 __Inputs__:
 The input file is supposed to be concentrations of chemical products over time,
 the first column of the csv beeing time.
+/!\ Time is considered "as is" and dealt with like if equal-width
     -s : works with the speeds of changes of concentration
     -a : works with the accelerations of changes of concentration
     -p : plot
@@ -43,7 +44,7 @@ number_cols = '10'      # number of columns
 indice = '0'            # indice of the ID (first indice)
 times = '3'             # number of runs
 viterbi_times = '2'     # number of viterbi walks
-max_number_time_step = 10
+max_number_time_steps = 10
 predicate = 'conc' # conc / speed / acce // DO NOT SET
 name = ""
 for arg in sys.argv[1:]: # may use getopt
@@ -80,10 +81,10 @@ def mean(t):
     return int(round(mean))
 
 def meanf(t):
-    mean = 0
+    mean = 0.0
     for e in t:
-        mean = mean + int(e)
-    mean = float(mean) / len(t)
+        mean = mean + float(e)
+    mean = float(mean) / float(len(t))
     return mean
 
 def imin(t):
@@ -117,57 +118,6 @@ for row in r:
 f.close()
 data_ind = range(len(data[0]))
 
-data_values = [] # data[compound_ind][time]
-### Convert data[i][c] to data_values[c][i] 
-for c in data_ind:
-    tmp = []
-    for i in range(len(data)):
-        tmp.append(float(data[i][c]))
-    data_values.append(tmp)
-
-### Determine the time sampling
-"""
-TODO: more fine grain
-"""
-step_size = len(data_values[0]) 
-for c in data_ind:
-    current = [c][0]
-    step_size_c = 1
-    min_step_size = int(round(float(len(data_values[c]))/max_number_time_step))
-    for i in range(len(data_values[c])):
-        if current != data_values[c][i]:
-            if step_size_c < step_size and step_size_c >= min_step_size:
-                step_size = step_size_c
-            current = data_values[c][i] 
-            step_size_c = 1
-        else:
-            step_size_c += 1
-print '>>> Final time step size %d' % step_size
-
-### Apply the time sampling to data_values with MEAN aggreg.
-fl = [] # fl[compound_ind][T] gives the time-discretized mean value at T
-for c in data_ind:
-    number_steps = int(round(float(len(data_values[c]))/step_size))
-    tmp = []
-    for i in range(number_steps):
-        if step_size*(i+1) < len(data_values[c]):
-            tmp.append(meanf(data_values[c][step_size*i:step_size*(i+1)]))
-        else:
-            tmp.append(meanf(data_values[c][step_size*i:]))
-    fl.append(tmp)
-
-### Write the new CSV that we will use with HUP
-tfirstname = 'tfirst_'+name
-f = open(tfirstname+'_seq.csv', 'w')
-w = csv.writer(f, delimiter=',', quotechar='"')
-data_ind = range(len(data[0]))
-for c in data_ind:
-    for i in range(len(fl[c])):
-        #w.writerow([int(round(time[i*step_size])),fl[c][i]])
-        w.writerow([i,fl[::][i]])
-f.close()
-print '>>> The new CSV has been written in %s_seq.csv' % (tfirstname)
-
 ### Here we parse arguments and manipulate the values 
 ### if we want to do something like concentration --> speed --> acceleration
 plot = 0
@@ -181,6 +131,46 @@ for arg in sys.argv:
     elif arg == '-p':
         plot = 1
 
+### Convert data[i][c] to data_values[c][i] 
+data_values = [] # data_values[compound_ind][time]
+for c in data_ind:
+    tmp = []
+    for i in range(len(data)):
+        tmp.append(float(data[i][c]))
+    data_values.append(tmp)
+
+### Determine the time sampling
+"""
+TODO: not equal-width
+"""
+step_size = int(round(float(len(data_values[0])) / max_number_time_steps))
+print '>>> Final time step size %d' % step_size
+
+### Apply the time sampling to data_values with MEAN aggreg.
+fl = [] # fl[compound_ind][T] gives the time-discretized mean value at T
+number_steps = max_number_time_steps
+for i in range(number_steps):
+    tmp = []
+    for c in data_ind:
+        if step_size*(i+1) < len(data_values[c]):
+            tmp.append(meanf(data_values[c][step_size*i:step_size*(i+1)]))
+        else:
+            tmp.append(meanf(data_values[c][step_size*i:]))
+    fl.append(tmp)
+
+### Write the new CSV that we will use with HUP
+tfirstname = 'tfirst_'+name
+f = open(tfirstname+'_seq.csv', 'w')
+w = csv.writer(f, delimiter=',', quotechar='"')
+#data_ind = range(len(data[0]))
+for i in range(len(fl[0])):
+    wrow = [i]
+    for item in fl[:][i]: 
+        wrow.append(item)
+    w.writerow(wrow)
+f.close()
+print '>>> The new CSV has been written in %s_seq.csv' % (tfirstname)
+
 ### Run the classification
 list_args = [prog, '-f', tfirstname, '-k', slice, '-x', number_cols,\
         '-I', indice, '-n', times, '-z', viterbi_times]
@@ -189,7 +179,7 @@ subprocess.call(list_args)
 
 ### Parse the Viterbi sequence to determine the levels
 print ">>> Will now parse the Viterbi's sequence"
-f = open(name+'_viterbi.csv')
+f = open(tfirstname+'_viterbi.csv')
 #ff = open(name+'_viterbi.csv')
 try:
     dialect = csv.Sniffer().sniff(f.read(1024))
@@ -228,6 +218,7 @@ if plot:
         import matplotlib.pyplot as plt
     except:
         sys.exit('Error: import matplotlib failed')
+
     ### Set levels_values
     levels_values = []
     for c in data_ind:
@@ -250,7 +241,6 @@ try:
     for c in data_ind:
         for i in range(len(fl[c])):
             f.write(predicate + '(' + first_line[c+1].rstrip(',') \
-                    ### TODO write it well
                     + ',' + str(fl[c][i]) + ',' + str(i) + ').\n' )
     print '>>> Symbolic discretized model written in %s_disc.sol' % (name)
 finally:

@@ -7,6 +7,7 @@ To be compliant with GHUP:
 __Inputs__:
 The input file is supposed to be concentrations of chemical products over time,
 the first column of the csv beeing time.
+/!\ Time is considered "as is" and dealt with like if equal-width
     -s : works with the speeds of changes of concentration
     -a : works with the accelerations of changes of concentration
     -p : plot
@@ -43,7 +44,7 @@ number_cols = '10'      # number of columns
 indice = '0'            # indice of the ID (first indice)
 times = '3'             # number of runs
 viterbi_times = '2'     # number of viterbi walks
-max_number_time_step = 10
+max_number_time_steps = 10
 predicate = 'conc' # conc / speed / acce // DO NOT SET
 name = ""
 for arg in sys.argv[1:]: # may use getopt
@@ -78,6 +79,13 @@ def mean(t):
         mean = mean + int(e)
     mean = float(mean) / len(t)
     return int(round(mean))
+
+def meanf(t):
+    mean = 0.0
+    for e in t:
+        mean = mean + float(e)
+    mean = float(mean) / float(len(t))
+    return mean
 
 def imin(t):
     min = 200000.0 # should use sys.maxint / float
@@ -171,7 +179,7 @@ step_size = len(levels[0])
 for c in data_ind:
     current = [c][0]
     step_size_c = 1
-    min_step_size = int(round(float(len(levels[c]))/max_number_time_step))
+    min_step_size = int(round(float(len(levels[c]))/max_number_time_steps))
     for i in range(len(levels[c])):
         if current != levels[c][i]:
             if step_size_c < step_size and step_size_c >= min_step_size:
@@ -184,14 +192,14 @@ print '>>> Final time step size %d' % step_size
 
 ### Apply the time sampling to levels with MEAN aggreg.
 fl = [] # fl[compound_ind][T] gives the discretized level from (V)HMM at T
+number_steps = int(round(float(len(levels[0]))/step_size))
 for c in data_ind:
-    number_steps = int(round(float(len(levels[c]))/step_size))
     tmp = []
     for i in range(number_steps):
         if step_size*(i+1) < len(levels[c]):
-            tmp.append(mean(levels[c][step_size*i:step_size*(i+1)]))
+            tmp.append(mean(levels[c][step_size*i:step_size*(i+1)])) ### TODO try with meanf
         else:
-            tmp.append(mean(levels[c][step_size*i:]))
+            tmp.append(mean(levels[c][step_size*i:])) ### TODO try with meanf
     fl.append(tmp)
 print '>>> Final levels:',
 print fl
@@ -202,8 +210,9 @@ if plot:
         import matplotlib.pyplot as plt
     except:
         sys.exit('Error: import matplotlib failed')
-    data_values = [] # data[compound_ind][time]
+
     ### Convert data[i][c] to data_values[c][i] and set levels_values
+    data_values = [] # data[compound_ind][time]
     levels_values = []
     for c in data_ind:
         tmp = []
