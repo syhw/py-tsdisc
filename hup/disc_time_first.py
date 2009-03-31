@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# coding=utf-8
 """
 To be compliant with GHUP:
     You provide one name and data is assumed to be in name+'_seq.csv'
@@ -163,7 +164,7 @@ tfirstname = 'tfirst_'+name
 f = open(tfirstname+'_seq.csv', 'w')
 w = csv.writer(f, delimiter=',', quotechar='"')
 #data_ind = range(len(data[0]))
-for i in range(len(fl[0])):
+for i in range(len(fl)):
     wrow = [i]
     for item in fl[:][i]: 
         wrow.append(item)
@@ -209,6 +210,8 @@ for row in r:
             levels.append(r.next()[3:])
             for j in range(int(viterbi_times) - 1):
                 r.next()
+print '>>> Final levels corresponding means:',
+print levels_means
 print '>>> Final levels:',
 print levels
 
@@ -223,13 +226,19 @@ if plot:
     levels_values = []
     for c in data_ind:
         tmp_lv = []
-        for i in range(len(data)):
+        #for i in range(len(data)):
+        for i in range(len(fl)):
+            #tmp_lv.append(float(levels_means[levels[c][int(round(float(i) / (step_size+1)))]]))
             tmp_lv.append(float(levels_means[levels[c][i]]))
         levels_values.append(tmp_lv)
+    step = int(round(float(len(time)) / len(fl)))
+    dtime = [] ### experim / debug
+    for i in range(len(fl)):
+        dtime.append(time[i*step])
     for c in data_ind:
         plt.figure(c)
         plt.plot(time, data_values[c], 'r', linewidth=1.0)
-        plt.plot(time, levels_values[c], 'k', linewidth=1.0)
+        plt.plot(dtime, levels_values[c], 'k', linewidth=1.0)
         ax = [min(time)-0.05, max(time)+0.05, 
                 min(levels_values[c])-0.5, max(levels_values[c])+0.5]
         plt.axis(ax)
