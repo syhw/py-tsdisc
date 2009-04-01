@@ -1,4 +1,6 @@
 #!/usr/bin/python
+# vim: set fileencoding=utf-8
+# encoding=utf-8
 """
 To be compliant with HUP:
     You provide one name and data is assumed to be in name+'_seq.csv'

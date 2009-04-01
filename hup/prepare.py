@@ -1,4 +1,6 @@
 #!/usr/bin/python
+# vim: set fileencoding=utf-8
+# encoding=utf-8
 """
 To be compliant with GHUP:
     You provide one name and data is assumed to be in name+'_seq.csv'
@@ -10,7 +12,8 @@ the first column of the csv beeing time.
 /!\ Time is considered "as is" and dealt with like if equal-width
     -s : works with the speeds of changes of concentration
     -a : works with the accelerations of changes of concentration
-    -p : plot
+    -p : plot each
+    -u : plot unique
 
 __Output__:
 The output file is named 'name_disc.sol'
@@ -38,11 +41,11 @@ except:
     print 'import psyco failed, running without'
 
 ### All the parameters that can be changed
-prog = './gvhmm'
-slice = '11'             # number of levels, 3:9:1 means between 3 and 9, incr 1
+prog = './vhmm'
+slice = '9'            # number of levels, 3:9:1 means between 3 and 9, incr 1
 number_cols = '10'      # number of columns
 indice = '0'            # indice of the ID (first indice)
-times = '3'             # number of runs
+times = '8'             # number of runs
 viterbi_times = '2'     # number of viterbi walks
 max_number_time_steps = 10
 predicate = 'conc' # conc / speed / acce // DO NOT SET
@@ -127,8 +130,10 @@ for arg in sys.argv:
     elif arg == '-a':
         predicate = 'acce'
         data = deriv(deriv(data, time),time)
-    elif arg == '-p':
+    elif arg == '-u':
         plot = 1
+    elif arg == '-p':
+        plot = 2
 
 ### Run the classification
 list_args = [prog, '-f', name, '-k', slice, '-x', number_cols,\
@@ -222,13 +227,40 @@ if plot:
             tmp_lv.append(float(levels_means[levels[c][i]]))
         data_values.append(tmp)
         levels_values.append(tmp_lv)
-    for c in data_ind:
-        plt.figure(c)
-        plt.plot(time, data_values[c], 'r', linewidth=2.0)
-        plt.plot(time, levels_values[c], 'k', linewidth=2.0)
-        ax = [min(time)-0.05, max(time)+0.05, 
-                min(levels_values[c])-0.5, max(levels_values[c])+0.5]
+    if plot == 2:
+        for c in data_ind:
+            plt.figure(c)
+            plt.plot(time, data_values[c], 'r', linewidth=2.0)
+            plt.plot(time, levels_values[c], 'k', linewidth=2.0)
+            ax = [min(time)-0.05, max(time)+0.05, 
+                    min(levels_values[c])-0.5, max(levels_values[c])+0.5]
+            plt.legend((first_line[c+1] + ' values', 
+                first_line[c+1] + ' levels'))
+            plt.axis(ax)
+            plt.xlabel('Time --->')
+            plt.ylabel('Concentration --->')
+    else:
+        plt.figure(0)
+        minl = 100000.0;
+        maxl = -100000.0;
+        colors = ['r','b','g','#BFD1D4','c','m','y','#F7F6AE','#E08C00','#80C2FF']
+        #colors = ['r','g','b','c','m','y','r--','g--','b--']
+        legend = []
+        for c in data_ind:
+            legend.append(first_line[c+1] + ' values')
+            legend.append(first_line[c+1] + ' levels')
+            plt.plot(time, data_values[c], 'k:', linewidth=1.5)
+            plt.plot(time, levels_values[c], colors[c], linewidth=1.0)
+            if min(levels_values[c]) < minl:
+                minl = min(levels_values[c])
+            if max(levels_values[c]) > maxl:
+                maxl = max(levels_values[c])
+        ax = [min(time) - 0.05, max(time) + 2, 
+                minl - 0.5, maxl + 1.5]
+        plt.legend(tuple(legend), shadow=True)
         plt.axis(ax)
+        plt.xlabel('Time --->')
+        plt.ylabel('Concentration --->')
     plt.show()
 
 ### Output the symbolic model
