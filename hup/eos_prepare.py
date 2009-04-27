@@ -39,7 +39,7 @@ except:
     print 'import psyco failed, running without'
 
 ### All the parameters that can be changed
-prog = './hmm'
+prog = './vhmmd'
 slice = '3'             # number of levels, 3:9:1 means between 3 and 9, incr 1
 number_cols = '10'      # number of columns
 indice = '0'            # indice of the ID (first indice)

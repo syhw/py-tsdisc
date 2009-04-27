@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/opt/local/bin/python2.5
 # vim: set fileencoding=utf-8
 # encoding=utf-8
 """
@@ -41,12 +41,13 @@ except:
     print 'import psyco failed, running without'
 
 ### All the parameters that can be changed
-prog = './vhmm'
-slice = '9'            # number of levels, 3:9:1 means between 3 and 9, incr 1
-number_cols = '10'      # number of columns
+prog = './vhmmd'
+slice = '5'            # number of levels, 3:9:1 means between 3 and 9, incr 1
+number_cols = '10'     # number of columns
+#number_cols = '102' #85km + 16com + 1time     # number of columns
 indice = '0'            # indice of the ID (first indice)
-times = '8'             # number of runs
-viterbi_times = '2'     # number of viterbi walks
+times = '3'             # number of runs
+viterbi_times = '1'     # number of viterbi walks
 max_number_time_steps = 10
 predicate = 'conc' # conc / speed / acce // DO NOT SET
 name = ""
@@ -102,15 +103,15 @@ def imin(t):
 ### Read the CSV 
 f = open(name+'_seq.csv')
 # Try to determine the dialect and if it fails take [, / "]
-try:
-    dialect = csv.Sniffer().sniff(f.read(1024))
-    f.seek(0)
-    r = csv.reader(f, dialect)
-except csv.Error, e:
-    print 'Error while trying to determine the dialect of the CSV file'
-    print "Warning : %s, take ',' as delimiter and '\"' as quotes" % (e)
-    f.seek(0)
-    r = csv.reader(f, delimiter=',', quotechar='"')
+##try:
+##    dialect = csv.Sniffer().sniff(f.read(1024))
+##    f.seek(0)
+##    r = csv.reader(f, dialect)
+##except csv.Error, e:
+##    print 'Error while trying to determine the dialect of the CSV file'
+##    print "Warning : %s, take ',' as delimiter and '\"' as quotes" % (e)
+##   f.seek(0)
+r = csv.reader(f, delimiter=',', quotechar='"')
 first_line = f.readline().rstrip('\n').split(',') 
 #r.next() # assume than the first row is a comment
 time = []
@@ -119,6 +120,21 @@ for row in r:
     time.append(float(row[0]))
     data.append(row[int(indice)+1:int(number_cols)])
 f.close()
+
+######## TIMES 100 or LOG
+### Write the new CSV that we will use with HUP
+#from math import log
+#f = open(name+'_seq.csv', 'w')
+#w = csv.writer(f, delimiter=',', quotechar='"')
+##data_ind = range(len(data[0]))
+#for i in range(3):
+#    wrow = [i]
+#    for item in data[i]: 
+#        #wrow.append(str(float(item)*100))
+#        wrow.append(str(log(float(item))))
+#    w.writerow(wrow)
+#f.close()
+
 
 ### Here we parse arguments and manipulate the values 
 ### if we want to do something like concentration --> speed --> acceleration
@@ -138,6 +154,7 @@ for arg in sys.argv:
 ### Run the classification
 list_args = [prog, '-f', name, '-k', slice, '-x', number_cols,\
         '-I', indice, '-n', times, '-z', viterbi_times]
+print list_args
 print '>>> Will now run: '+string.join(list_args, ' ')
 subprocess.call(list_args)
 
@@ -174,6 +191,9 @@ for row in r:
             levels.append(r.next()[3:])
             for j in range(int(viterbi_times) - 1):
                 r.next()
+                
+print '>>> Levels means: '
+print levels_means
 
 ### Determine the time sampling
 """
@@ -249,15 +269,15 @@ if plot:
         for c in data_ind:
             legend.append(first_line[c+1] + ' values')
             legend.append(first_line[c+1] + ' levels')
-            plt.plot(time, data_values[c], 'k:', linewidth=1.5)
-            plt.plot(time, levels_values[c], colors[c], linewidth=1.0)
+            plt.plot(time, data_values[c], 'k:', linewidth=1.0)
+            plt.plot(time, levels_values[c], colors[c], linewidth=2.0)
             if min(levels_values[c]) < minl:
                 minl = min(levels_values[c])
             if max(levels_values[c]) > maxl:
                 maxl = max(levels_values[c])
         ax = [min(time) - 0.05, max(time) + 2, 
                 minl - 0.5, maxl + 1.5]
-        plt.legend(tuple(legend), shadow=True)
+        ######### plt.legend(tuple(legend), shadow=True)
         plt.axis(ax)
         plt.xlabel('Time --->')
         plt.ylabel('Concentration --->')
