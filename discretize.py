@@ -57,18 +57,28 @@ for c in range(number_cols - 1):
     t = pylab.array(temp)
     compounds.append(t)
 
-pylab.subplot(211)
+pylab.subplot(311)
 for i in range(len(compounds)): 
     pylab.plot(time, compounds[i])
     pylab.title(first_line[i+1])
 
-pylab.subplot(212)
-coeff = sg_filter.calc_coeff(10,2)
+pylab.subplot(312)
+coeff = sg_filter.calc_coeff(3,2)
 smoothed_compounds = []
 for i in range(len(compounds)): 
     smoothed_compounds.append(sg_filter.smooth(compounds[i], coeff))
     pylab.plot(time, smoothed_compounds[i])
     pylab.title("Smoothed " + first_line[i+1])
+
+# derivative
+pylab.subplot(313)
+coeff = sg_filter.calc_coeff(3,2,1)
+smoothed_dcompounds = []
+for i in range(len(compounds)): 
+    smoothed_dcompounds.append(sg_filter.smooth(compounds[i], coeff))
+    pylab.plot(time, smoothed_dcompounds[i])
+    pylab.title("Smoothed derivative of " + first_line[i+1])
+
 pylab.savefig("test.png")
 #fish.pvalue()
 
