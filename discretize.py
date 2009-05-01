@@ -20,6 +20,7 @@ Default behavior:
 
 import sys, csv, getopt
 import pylab 
+import numpy
 import sg_filter
 import arrayfns
 import math
@@ -65,6 +66,62 @@ for o, a in opts:
 #print opts
 #print args
 
+def savitzky_golay(data, kernel = 11, order = 4):
+    """
+        applies a Savitzky-Golay filter
+        input parameters:
+        - data => data as a 1D numpy array
+        - kernel => a positiv integer > 2*order giving the kernel size
+        - order => order of the polynomal
+        returns smoothed data as a numpy array
+
+        invoke like:
+        smoothed = savitzky_golay(<rough>, [kernel = value], [order = value]
+    """
+    try:
+        kernel = abs(int(kernel))
+        order = abs(int(order))
+    except ValueError, msg:
+        raise ValueError("kernel and order have to be of type int (floats will be converted).")
+    if kernel % 2 != 1 or kernel < 1:
+        raise TypeError("kernel size must be a positive odd number, was: %d" % kernel)
+    if kernel < order + 2:
+        raise TypeError("kernel is to small for the polynomals\nshould be > order + 2")
+
+    # a second order polynomal has 3 coefficients
+    order_range = range(order+1)
+    half_window = (kernel -1) // 2
+    b = numpy.mat([[k**i for i in order_range] for k in range(-half_window, half_window+1)])
+    # since we don't want the derivative, else choose [1] or [2], respectively
+    m = numpy.linalg.pinv(b).A[0]
+    window_size = len(m)
+    half_window = (window_size-1) // 2
+
+    # precompute the offset values for better performance
+    offsets = range(-half_window, half_window+1)
+    offset_data = zip(offsets, m)
+
+    smooth_data = list()
+
+    # temporary data, with padded zeros (since we want the same length after smoothing)
+    firstval = data[0]
+    lastval = data[len(data)-1]
+    leftpad=numpy.zeros(half_window)+2*firstval
+    rightpad=numpy.zeros(half_window)+2*lastval
+    leftchunk=data[1:1+half_window]
+    leftpad=leftpad-leftchunk[::-1]
+    rightchunk=data[len(data)-half_window-1:len(data)-1]
+    rightpad=rightpad-rightchunk[::-1]
+    data = numpy.concatenate((leftpad, data))
+    data = numpy.concatenate((data, rightpad))
+    # data = numpy.concatenate((numpy.zeros(half_window)+firstval, data, numpy.zeros(half_window)+lastval))
+    for i in range(half_window, len(data) - half_window):
+        value = 0.0
+        for offset, weight in offset_data:
+            value += weight * data[i + offset]
+        smooth_data.append(value)
+    return numpy.array(smooth_data)
+
 def plot_figs(name, time, **kwargs):
     """
     plot the figure containing all the listed kwargs, 
@@ -78,7 +135,14 @@ def plot_figs(name, time, **kwargs):
         num = num + 1
         pylab.subplot(code)
         for i in range(len(l)): 
-            pylab.plot(time, l[i])
+            if len(time) == len(l[i]):
+                pylab.plot(time, l[i])
+            else:
+                div = len(time) / len(l[i]) + 1
+                print div
+                print len(time[::div])
+                print len(l[i])
+                pylab.plot(time[::div], l[i])
             pylab.title(k)
     pylab.savefig(name)
 
@@ -191,15 +255,20 @@ if smoothing:
     coeff = sg_filter.calc_coeff(6,3)
     smoothed_compounds = []
     for i in range(len(compounds)): 
-        smoothed_compounds.append(sg_filter.smooth(compounds[i], coeff))
+        #smoothed_compounds.append(sg_filter.smooth(compounds[i], coeff))
+        smoothed_compounds.append(savitzky_golay(compounds[i]))
 
     ############ derivative ############
     if plot:
         pylab.subplot(313)
     coeff = sg_filter.calc_coeff(6,3,1)
     smoothed_dcompounds = []
+    ttt = time[::80]
     for i in range(len(compounds)): 
-        smoothed_dcompounds.append(sg_filter.smooth(compounds[i], coeff))
+        #smoothed_dcompounds.append(sg_filter.smooth(compounds[i], coeff))
+        #smoothed_dcompounds.append(savitzky_golay(deriv(compounds[i], time)))
+        aaa = 10*compounds[i][::80]
+        smoothed_dcompounds.append(savitzky_golay(deriv(aaa, ttt)))
         #smoothed_dcompounds.append(deriv(compounds[i], time))
 
     if plot:
@@ -241,12 +310,6 @@ if interp:
                 smoothed_compounds=smoothed_compounds, \
                 smoothed_derivative_of_compounds=smoothed_dcompounds)
 
-
-for c in compounds:
-    print c[500]
-    print c[490]
 #    print find_inflex_points(c)
 
-
 #fish.pvalue()
-
