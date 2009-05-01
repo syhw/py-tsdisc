@@ -263,13 +263,10 @@ if smoothing:
         pylab.subplot(313)
     coeff = sg_filter.calc_coeff(6,3,1)
     smoothed_dcompounds = []
-    ttt = time[::80]
+    ttt = time[::100]
     for i in range(len(compounds)): 
-        #smoothed_dcompounds.append(sg_filter.smooth(compounds[i], coeff))
-        #smoothed_dcompounds.append(savitzky_golay(deriv(compounds[i], time)))
         aaa = 10*compounds[i][::80]
         smoothed_dcompounds.append(savitzky_golay(deriv(aaa, ttt)))
-        #smoothed_dcompounds.append(deriv(compounds[i], time))
 
     if plot:
         plot_figs('smoothing.png', time, \
