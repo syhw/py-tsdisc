@@ -18,7 +18,7 @@ Default behavior:
 # Author: Gabriel Synnaeve 
 # License: http://www.opensource.org/licenses/PythonSoftFoundation.php
 
-import sys, csv, getopt
+import sys, csv, getopt, warnings
 import pylab 
 import numpy
 import sg_filter
@@ -39,11 +39,20 @@ smoothing = 0
 interp = 0
 first_line = ''
 
+def deprecated(replacement):
+    def new_func(func):
+        func.__doc__ = "!!! Deprecated !!!" + func.__doc__
+        warnings.warn(\
+                "This function is deprecated, use "+replacement+" instead",\
+                DeprecationWarning, 2)
+        return func
+    return new_func
+
 def Usage():
     print "./discretize.py csv_file [-d][-h][-p][-s][-i]"
 
-inputname = sys.argv.pop(1)
 try:    
+    inputname = sys.argv.pop(1)
     opts, args = getopt.getopt(sys.argv[1:],'dhpsi')
 except getopt.GetoptError:
     Usage()
@@ -197,40 +206,50 @@ def interpol(data, time): ### TODO spline interp
     """
     return True
 
-def find_inflex_points(list):
+def _deriv5(h, hhx, hx, xh, xhh):
+    return (-hhx - 8*hx + 8*xh + xhh)/(12*h)
+
+def deriv5(h, list):
+    demilen = 2
+    constr = []
+    d = []
+    for i in range(demilen):
+        constr.append(list[0])
+    for e in list:
+        constr.append(e)
+    for i in range(demilen):
+        constr.append(list[len(list)-1])
+    print len(list)
+    print len(constr)
+    for i in range(len(list)):
+        d.append(_deriv5(h, constr[i], constr[i+1], \
+                constr[i+3], constr[i+4]))
+    print len(d)
+    return d
+
+@deprecated("find_inflex_points")
+def old_find_inflex_points(h, list):
+    """ 
+    Find relevant inflexion points in a numerical array representing
+    values (evaluations) of a function through 5 points stencil
+    """
     inflex = []
-    d = deriv(list, range(len(list)))
-    print d
-    for i in range(len(d)):
-        if not d[i]:
-            inflex.append(i)
+    deriv_l = deriv5(h, list)
+    for i in xrange(len(list)):
+        if deriv_l[i] == 0.0:
+            inflex.append((i,list[i]))
     return inflex
 
-def find_inflex_points2(list):
+def find_inflex_points(h, list):
     """ 
     Find relevant inflexion points in a numerical array representing
     values (evaluations) of a function
     """
+    demilen = len(list) / 160
+    lencontext = 2*demilen + 1
     inflex = []
-    wl = []
-    for i in range(6):
-        wl.append(list[0])
-    wl.append(list[:])
-    for i in range(6):
-        wl.append(list[len(list)-1])
-    context13 = wl[0:12]
-    for i in xrange(len(list)):
-        context13.append(list[i+6])
-        if len(context13) > 13:
-            context5.pop(0)
-        #if list[i+2] > list[i+1] and list[i+2] > list[i]\
-        #        and list[i+2] > list[i+3] and list[i+2] > list[i+4]:
-        #    inflex.append(i+2)
-        #if list[i+2] < list[i+1] and list[i+2] < list[i]\
-        #        and list[i+2] < list[i+3] and list[i+2] < list[i+4]:
-        #    inflex.append(i+2)
+    # TODO
     return inflex
-
 
 file = open(inputname)
 r = csv.reader(file, delimiter=',', quotechar='"')
@@ -263,10 +282,12 @@ if smoothing:
         pylab.subplot(313)
     coeff = sg_filter.calc_coeff(6,3,1)
     smoothed_dcompounds = []
-    ttt = time[::100]
+    ttt = time[::47]
     for i in range(len(compounds)): 
-        aaa = 10*compounds[i][::80]
-        smoothed_dcompounds.append(savitzky_golay(deriv(aaa, ttt)))
+        for j in range(len(compounds[i])):
+            compounds[i][j] = math.log(5+compounds[i][j])
+        aaa = savitzky_golay(compounds[i][::47])
+        smoothed_dcompounds.append(deriv(aaa, ttt))
 
     if plot:
         plot_figs('smoothing.png', time, \
@@ -288,6 +309,10 @@ if interp:
     compounds = icompounds
     time = itime
 
+    for c in icompounds:
+        old_find_inflex_points(step, c)
+        pass
+
     if smoothing:
         ############ smoothing (Savitzky-Golay) ############
         coeff = sg_filter.calc_coeff(6,3)
@@ -305,8 +330,10 @@ if interp:
         plot_figs('after_interp.png', time, \
                 compounds=compounds, \
                 smoothed_compounds=smoothed_compounds, \
-                smoothed_derivative_of_compounds=smoothed_dcompounds)
+                smoothed_derivative_of_compounds=smoothed_dcompounds\
+                )
 
-#    print find_inflex_points(c)
+if __name__ == '__main__':
+    pass
 
 #fish.pvalue()
