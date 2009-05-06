@@ -219,12 +219,9 @@ def deriv5(h, list):
         constr.append(e)
     for i in range(demilen):
         constr.append(list[len(list)-1])
-    print len(list)
-    print len(constr)
     for i in range(len(list)):
         d.append(_deriv5(h, constr[i], constr[i+1], \
                 constr[i+3], constr[i+4]))
-    print len(d)
     return d
 
 @deprecated("find_inflex_points")
@@ -248,7 +245,18 @@ def find_inflex_points(h, list):
     demilen = len(list) / 160
     lencontext = 2*demilen + 1
     inflex = []
-    # TODO
+    constr = []
+    for i in range(demilen):
+        constr.append(list[0])
+    for e in list:
+        constr.append(e)
+    for i in range(demilen):
+        constr.append(list[len(list)-1])
+    context = constr[0:lencontext]
+    print len(list)
+    print range(len(list))
+    for i in range(len(list)):
+        pass
     return inflex
 
 file = open(inputname)
