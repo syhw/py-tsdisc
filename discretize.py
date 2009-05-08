@@ -37,27 +37,28 @@ number_cols = 10
 plot = 0
 smoothing = 0
 interp = 0
+debug = 0
+append = 0
 first_line = ''
 
-def deprecated(replacement):
-    def new_func(func):
+def deprecated(func):
+    def new_func(*args, **kwargs):
         func.__doc__ = "!!! Deprecated !!!" + func.__doc__
         warnings.warn(\
-                "This function is deprecated, use "+replacement+" instead",\
+                "This function is deprecated",\
                 DeprecationWarning, 2)
-        return func
+        return func(*args, **kwargs)
     return new_func
 
 def Usage():
-    print "./discretize.py csv_file [-d][-h][-p][-s][-i]"
+    print "./discretize.py csv_file [-d][-h][-p][-s][-i][-a]"
 
 try:    
     inputname = sys.argv.pop(1)
-    opts, args = getopt.getopt(sys.argv[1:],'dhpsi')
+    opts, args = getopt.getopt(sys.argv[1:],'dhpsia')
 except getopt.GetoptError:
     Usage()
     sys.exit(2)
-debug = 0
 for o, a in opts:
     if o == '-h':
         Usage()
@@ -70,6 +71,8 @@ for o, a in opts:
         smoothing = 1
     elif o == '-i':
         interp = 1 
+    elif o == '-a':
+        append = 1 
     else:
         assert False, "unhandled option"
 #print opts
@@ -155,6 +158,23 @@ def plot_figs(name, time, **kwargs):
             pylab.title(k)
     pylab.savefig(name)
 
+def plot_inflex(time, inflex, compounds):
+    """
+    plot the figure with the data graphs and their inflexion points
+    """
+    pylab.figure(figsize=(8,6))
+    for infl in inflex:
+        inflexx = []
+        inflexy = []
+        for (t,e) in infl:
+            inflexx.append(time[t])
+            inflexy.append(e)
+        pylab.plot(inflexx, inflexy, 'ro')
+    for c in compounds:
+        pylab.plot(time, c)
+    pylab.title('inflexion points')
+    pylab.savefig('inflex.png')
+
 def deriv(data, time):
     """ 
     Derivate data values in regard to time with 
@@ -224,7 +244,7 @@ def deriv5(h, list):
                 constr[i+3], constr[i+4]))
     return d
 
-@deprecated("find_inflex_points")
+@deprecated
 def old_find_inflex_points(h, list):
     """ 
     Find relevant inflexion points in a numerical array representing
@@ -237,11 +257,18 @@ def old_find_inflex_points(h, list):
             inflex.append((i,list[i]))
     return inflex
 
-def find_inflex_points(h, list):
+@deprecated
+def old_find_inflex_points2(list):
     """ 
     Find relevant inflexion points in a numerical array representing
     values (evaluations) of a function
     """
+    def compare(a, b, n):
+        if n:
+            return (a <= b)
+        else:
+            return (a >= b)
+    
     demilen = len(list) / 160
     lencontext = 2*demilen + 1
     inflex = []
@@ -253,10 +280,79 @@ def find_inflex_points(h, list):
     for i in range(demilen):
         constr.append(list[len(list)-1])
     context = constr[0:lencontext]
-    print len(list)
-    print range(len(list))
     for i in range(len(list)):
-        pass
+        variation = False # local  min
+        if context[0] < context[demilen] \
+                and context[demilen] > context[lencontext-1]:
+            variation = True # local max
+        elif context[0] > context[demilen] \
+                and context[demilen] < context[lencontext-1]:
+            variation = False # local min
+        else: 
+            continue
+        tmp = 0
+        f = context[0]
+        for e in context[1:demilen+1]:
+            if compare(f, e, variation):
+                tmp += 1
+            else:
+                tmp -= demilen
+            f = e
+        f = context[demilen+1]
+        for e in context[demilen+1:lencontext]:
+            if compare(f, e, not variation):
+                tmp += 1
+            else:
+                tmp -= demilen
+            f = e
+        if tmp >= lencontext:
+            inflex.append((i+demilen, list[i+demilen]))
+        context.append(constr[i+lencontext-1])
+        if len(context) > lencontext:
+            context.pop(0)
+    return inflex
+
+def find_inflex_points(time,list, append):
+    """ 
+    Find relevant inflexion points in a numerical array representing
+    values (evaluations) of a function
+    """
+    inflex = []
+    up = True
+    first = True
+    def compare(a, b, n):
+        if n:
+            return (a <= b)
+        else:
+            return (a >= b)
+    p = list[0]
+    tmp = []
+    for i in range(len(list)):
+        if list[i] == p:
+            tmp.append((i, list[i]))
+        elif list[i] < p and not first:
+            if up:
+                inflex.append(tmp[(len(tmp)-1)/2])
+            up = False
+            tmp = []
+        elif list[i] > p and not first:
+            if not up:
+                inflex.append(tmp[(len(tmp)-1)/2])
+            up = True
+            tmp = []
+        elif list[i] < p:
+            first = False
+            up = False
+            inflex.append(tmp[(len(tmp)-1)/2])
+            tmp = []
+        elif list[i] > p:
+            first = False
+            up = True
+            inflex.append(tmp[(len(tmp)-1)/2])
+            tmp = []
+        p = list[i]
+    if append:
+        inflex.append((len(list)-1, list[len(list)-1]))
     return inflex
 
 file = open(inputname)
@@ -277,32 +373,7 @@ for c in range(number_cols - 1):
     t = pylab.array(temp)
     compounds.append(t)
 
-if smoothing:
-    ############ smoothing (Savitzky-Golay) ############
-    coeff = sg_filter.calc_coeff(6,3)
-    smoothed_compounds = []
-    for i in range(len(compounds)): 
-        #smoothed_compounds.append(sg_filter.smooth(compounds[i], coeff))
-        smoothed_compounds.append(savitzky_golay(compounds[i]))
-
-    ############ derivative ############
-    if plot:
-        pylab.subplot(313)
-    coeff = sg_filter.calc_coeff(6,3,1)
-    smoothed_dcompounds = []
-    ttt = time[::47]
-    for i in range(len(compounds)): 
-        for j in range(len(compounds[i])):
-            compounds[i][j] = math.log(5+compounds[i][j])
-        aaa = savitzky_golay(compounds[i][::47])
-        smoothed_dcompounds.append(deriv(aaa, ttt))
-
-    if plot:
-        plot_figs('smoothing.png', time, \
-                compounds=compounds, \
-                smoothed_compounds=smoothed_compounds, \
-                smoothed_derivative_of_compounds=smoothed_dcompounds)
-
+inflex = []
 if interp:
     itime = [time[0]] # always an important value
     (step, t) = find_min_delta(time)
@@ -317,29 +388,31 @@ if interp:
     compounds = icompounds
     time = itime
 
-    for c in icompounds:
-        old_find_inflex_points(step, c)
-        pass
-
-    if smoothing:
-        ############ smoothing (Savitzky-Golay) ############
-        coeff = sg_filter.calc_coeff(6,3)
-        smoothed_compounds = []
-        for i in range(len(compounds)): 
-            smoothed_compounds.append(sg_filter.smooth(compounds[i], coeff))
-        ############ derivative ############
-        coeff = sg_filter.calc_coeff(6,3,1)
-        smoothed_dcompounds = []
-        for i in range(len(compounds)): 
-            smoothed_dcompounds.append(sg_filter.smooth(compounds[i], coeff))
-            #smoothed_dcompounds.append(deriv(compounds[i], time))
-
+if smoothing:
+    ############ smoothing (Savitzky-Golay) ############
+    ### TODO choose between sg_filter and savitzky_golay
+    coeff = sg_filter.calc_coeff(6,3)
+    smoothed_compounds = []
+    for i in range(len(compounds)): 
+        #smoothed_compounds.append(sg_filter.smooth(compounds[i], coeff))
+        smoothed_compounds.append(savitzky_golay(compounds[i]))
+    ############ derivative ############
+    coeff = sg_filter.calc_coeff(6,3,1)
+    smoothed_dcompounds = []
+    for i in range(len(compounds)): 
+        smoothed_dcompounds.append(sg_filter.smooth(compounds[i], coeff))
+        #smoothed_dcompounds.append(deriv(compounds[i], time))
     if plot:
-        plot_figs('after_interp.png', time, \
+        plot_figs('smoothed.png', time, \
                 compounds=compounds, \
                 smoothed_compounds=smoothed_compounds, \
                 smoothed_derivative_of_compounds=smoothed_dcompounds\
                 )
+
+for c in compounds:
+    inflex.append(find_inflex_points(time, c, append))
+if plot:
+    plot_inflex(time, inflex, compounds)
 
 if __name__ == '__main__':
     pass
